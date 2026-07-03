@@ -105,6 +105,15 @@ function deleteMember_(name) {
   return getMembers_();
 }
 
+// Luôn trả về ngày dạng chuỗi thuần 'yyyy-MM-dd', kể cả khi ô trong Sheet lỡ lưu
+// thành text ISO đầy đủ (vd '2026-07-01T17:00:00.000Z') từ dữ liệu cũ.
+function normalizeDate_(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(value || '').slice(0, 10);
+}
+
 function matchToObj_(row) {
   let participants = [];
   try {
@@ -114,9 +123,7 @@ function matchToObj_(row) {
   }
   return {
     id: row.ID,
-    date: row.Date instanceof Date
-      ? Utilities.formatDate(row.Date, Session.getScriptTimeZone(), 'yyyy-MM-dd')
-      : row.Date,
+    date: normalizeDate_(row.Date),
     courtFee: Number(row.CourtFee) || 0,
     shuttleFee: Number(row.ShuttleFee) || 0,
     totalFee: Number(row.TotalFee) || 0,
@@ -173,18 +180,31 @@ function updateMatch_(data) {
   const values = sheet.getDataRange().getValues();
   const headers = values[0];
   const idCol = headers.indexOf('ID');
+  const courtFeeCol = headers.indexOf('CourtFee');
+  const shuttleFeeCol = headers.indexOf('ShuttleFee');
   const totalFeeCol = headers.indexOf('TotalFee');
   const participantsCol = headers.indexOf('Participants');
   const perPersonCol = headers.indexOf('PerPerson');
 
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][idCol]) === id) {
-      const totalFee = Number(values[i][totalFeeCol]) || 0;
+      // courtFee/shuttleFee tuỳ chọn — nếu không gửi lên thì giữ nguyên giá trị cũ (chỉ đổi người tham gia).
+      const courtFee = data.courtFee !== undefined ? (Number(data.courtFee) || 0) : (Number(values[i][courtFeeCol]) || 0);
+      const shuttleFee = data.shuttleFee !== undefined ? (Number(data.shuttleFee) || 0) : (Number(values[i][shuttleFeeCol]) || 0);
+      const totalFee = courtFee + shuttleFee;
       const perPerson = totalFee / participants.length;
+
+      sheet.getRange(i + 1, courtFeeCol + 1).setValue(courtFee);
+      sheet.getRange(i + 1, shuttleFeeCol + 1).setValue(shuttleFee);
+      sheet.getRange(i + 1, totalFeeCol + 1).setValue(totalFee);
       sheet.getRange(i + 1, participantsCol + 1).setValue(JSON.stringify(participants));
       sheet.getRange(i + 1, perPersonCol + 1).setValue(perPerson);
+
       const row = {};
       headers.forEach((h, idx) => (row[h] = values[i][idx]));
+      row.CourtFee = courtFee;
+      row.ShuttleFee = shuttleFee;
+      row.TotalFee = totalFee;
       row.Participants = JSON.stringify(participants);
       row.PerPerson = perPerson;
       return matchToObj_(row);
@@ -230,9 +250,7 @@ function contribToObj_(row) {
     id: row.ID,
     name: row.Name,
     amount: Number(row.Amount) || 0,
-    date: row.Date instanceof Date
-      ? Utilities.formatDate(row.Date, Session.getScriptTimeZone(), 'yyyy-MM-dd')
-      : row.Date,
+    date: normalizeDate_(row.Date),
     note: row.Note || '',
     createdAt: row.CreatedAt
   };

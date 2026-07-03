@@ -18,6 +18,9 @@ const state = {
 
 let matchDateField = null;
 let contribDateField = null;
+let courtFeeField = null;
+let shuttleFeeField = null;
+let contribAmountField = null;
 
 // ---------- API helpers ----------
 
@@ -149,6 +152,22 @@ function setupDateField(textId, nativeId, { defaultToday = true } = {}) {
   return controller;
 }
 
+// Gắn định dạng số tiền kiểu VN (dấu chấm ngăn cách hàng nghìn) khi gõ vào 1 ô input text.
+function setupMoneyField(id) {
+  const input = document.getElementById(id);
+
+  function format() {
+    const digits = input.value.replace(/\D/g, '');
+    input.value = digits ? Number(digits).toLocaleString('vi-VN') : '';
+  }
+  input.addEventListener('input', format);
+
+  return {
+    getValue: () => Number(input.value.replace(/\D/g, '')) || 0,
+    setValue: (n) => { input.value = n ? Number(n).toLocaleString('vi-VN') : ''; },
+  };
+}
+
 // ---------- Load data ----------
 
 async function loadAll() {
@@ -219,8 +238,8 @@ function renderParticipantChips() {
 }
 
 function updateTotalPreview() {
-  const courtFee = Number(document.getElementById('court-fee').value) || 0;
-  const shuttleFee = Number(document.getElementById('shuttle-fee').value) || 0;
+  const courtFee = courtFeeField.getValue();
+  const shuttleFee = shuttleFeeField.getValue();
   const total = courtFee + shuttleFee;
   const count = state.selectedParticipants.size;
   const perPerson = count > 0 ? total / count : 0;
@@ -231,6 +250,8 @@ function updateTotalPreview() {
 }
 
 function setupNewMatchForm() {
+  courtFeeField = setupMoneyField('court-fee');
+  shuttleFeeField = setupMoneyField('shuttle-fee');
   document.getElementById('court-fee').addEventListener('input', updateTotalPreview);
   document.getElementById('shuttle-fee').addEventListener('input', updateTotalPreview);
   matchDateField = setupDateField('match-date', 'match-date-native');
@@ -261,8 +282,8 @@ function setupNewMatchForm() {
     e.preventDefault();
     const btn = document.getElementById('submit-match-btn');
     const date = matchDateField.getIso();
-    const courtFee = Number(document.getElementById('court-fee').value) || 0;
-    const shuttleFee = Number(document.getElementById('shuttle-fee').value) || 0;
+    const courtFee = courtFeeField.getValue();
+    const shuttleFee = shuttleFeeField.getValue();
     const note = document.getElementById('match-note').value.trim();
     const participants = Array.from(state.selectedParticipants);
 
@@ -379,8 +400,18 @@ function renderMatchEditItem(item, m) {
     <div class="match-item-top">
       <div>
         <div class="match-date">${formatDateVN(m.date)}</div>
-        <div class="match-fee">Sân ${fmtVND(m.courtFee)} · Cầu ${fmtVND(m.shuttleFee)}${m.note ? ' · ' + escapeHtml(m.note) : ''}</div>
+        ${m.note ? `<div class="match-fee">${escapeHtml(m.note)}</div>` : ''}
       </div>
+    </div>
+    <div class="grid-2">
+      <label class="field">
+        <span>Phí sân (VNĐ)</span>
+        <input type="text" class="edit-court-fee" inputmode="numeric" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Phí cầu (VNĐ)</span>
+        <input type="text" class="edit-shuttle-fee" inputmode="numeric" autocomplete="off">
+      </label>
     </div>
     <div class="field">
       <span>Người tham gia</span>
@@ -401,6 +432,19 @@ function renderMatchEditItem(item, m) {
       <button type="button" class="btn btn-secondary edit-cancel-btn">Huỷ</button>
     </div>
   `;
+
+  const courtFeeInput = item.querySelector('.edit-court-fee');
+  const shuttleFeeInput = item.querySelector('.edit-shuttle-fee');
+  courtFeeInput.value = m.courtFee ? Number(m.courtFee).toLocaleString('vi-VN') : '';
+  shuttleFeeInput.value = m.shuttleFee ? Number(m.shuttleFee).toLocaleString('vi-VN') : '';
+  [courtFeeInput, shuttleFeeInput].forEach(input => {
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/\D/g, '');
+      input.value = digits ? Number(digits).toLocaleString('vi-VN') : '';
+    });
+  });
+  const getCourtFee = () => Number(courtFeeInput.value.replace(/\D/g, '')) || 0;
+  const getShuttleFee = () => Number(shuttleFeeInput.value.replace(/\D/g, '')) || 0;
 
   const chipList = item.querySelector('.edit-chip-list');
 
@@ -468,8 +512,13 @@ function renderMatchEditItem(item, m) {
     btn.disabled = true;
     btn.textContent = 'Đang lưu...';
     try {
-      await apiPost('updateMatch', { id: m.id, participants });
-      showBanner('Đã cập nhật người tham gia.', 'success');
+      await apiPost('updateMatch', {
+        id: m.id,
+        participants,
+        courtFee: getCourtFee(),
+        shuttleFee: getShuttleFee(),
+      });
+      showBanner('Đã cập nhật trận đấu.', 'success');
       state.editingMatchId = null;
       await loadAll();
     } catch (err) {
@@ -524,17 +573,30 @@ function renderSummary() {
 // QUỸ
 // ===================================================================
 
+// Cho chọn cả thành viên cố định lẫn khách vãng lai (bất kỳ ai từng tham gia trận đấu)
+// để có thể ghi nhận khoản khách vãng lai đã trả, tránh số dư quỹ bị lệch.
 function renderFundMemberSelect() {
   const select = document.getElementById('contrib-name');
   const prev = select.value;
-  if (state.members.length === 0) {
-    select.innerHTML = '<option value="">Chưa có ai trong danh sách cố định</option>';
+
+  const guestNames = [...new Set(state.matches.flatMap(m => m.participants || []))]
+    .filter(name => !state.members.includes(name))
+    .sort((a, b) => a.localeCompare(b, 'vi'));
+
+  if (state.members.length === 0 && guestNames.length === 0) {
+    select.innerHTML = '<option value="">Chưa có ai để chọn</option>';
     select.disabled = true;
     return;
   }
   select.disabled = false;
-  select.innerHTML = state.members.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
-  if (state.members.includes(prev)) select.value = prev;
+
+  const memberOptions = state.members.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+  const guestOptions = guestNames.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+  select.innerHTML =
+    (memberOptions ? `<optgroup label="Danh sách cố định">${memberOptions}</optgroup>` : '') +
+    (guestOptions ? `<optgroup label="Khách vãng lai">${guestOptions}</optgroup>` : '');
+
+  if ([...state.members, ...guestNames].includes(prev)) select.value = prev;
 }
 
 function renderBalances() {
@@ -605,17 +667,18 @@ function renderContributionHistory() {
 
 function setupContributionForm() {
   contribDateField = setupDateField('contrib-date', 'contrib-date-native');
+  contribAmountField = setupMoneyField('contrib-amount');
 
   document.getElementById('contribution-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submit-contrib-btn');
     const name = document.getElementById('contrib-name').value;
-    const amount = Number(document.getElementById('contrib-amount').value) || 0;
+    const amount = contribAmountField.getValue();
     const date = contribDateField.getIso();
     const note = document.getElementById('contrib-note').value.trim();
 
     if (!name) {
-      showBanner('Chưa có ai trong danh sách cố định để chọn.', 'error');
+      showBanner('Chưa có ai để chọn — thêm người vào danh sách cố định hoặc tạo 1 trận đấu trước.', 'error');
       return;
     }
     if (amount <= 0) {
@@ -693,9 +756,12 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function formatDateVN(ymd) {
-  const [y, m, d] = String(ymd).split('-');
-  if (!y || !m || !d) return ymd;
+function formatDateVN(value) {
+  // Chỉ lấy đúng phần yyyy-MM-dd, phòng khi dữ liệu cũ còn lẫn giờ/timezone
+  // (vd '2026-07-01T17:00:00.000Z') thì vẫn hiển thị đúng dd/mm/yyyy.
+  const ymd = String(value || '').slice(0, 10);
+  const [y, m, d] = ymd.split('-');
+  if (!y || !m || !d) return value;
   return `${d}/${m}/${y}`;
 }
 

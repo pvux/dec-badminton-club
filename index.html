@@ -58,11 +58,11 @@
         <div class="grid-2">
           <label class="field">
             <span>Phí sân (VNĐ)</span>
-            <input type="number" id="court-fee" min="0" step="1000" placeholder="0" required>
+            <input type="text" id="court-fee" inputmode="numeric" autocomplete="off" placeholder="0" required>
           </label>
           <label class="field">
             <span>Phí cầu (VNĐ)</span>
-            <input type="number" id="shuttle-fee" min="0" step="1000" placeholder="0" required>
+            <input type="text" id="shuttle-fee" inputmode="numeric" autocomplete="off" placeholder="0" required>
           </label>
         </div>
 
@@ -121,7 +121,7 @@
   <section class="panel" id="panel-fund">
     <div class="card">
       <h2 class="card-title">Đóng quỹ</h2>
-      <p class="card-sub">Chỉ áp dụng cho người trong danh sách cố định. Số tiền đóng sẽ được trừ dần vào chi phí các trận đấu.</p>
+      <p class="card-sub">Áp dụng cho người trong danh sách cố định hoặc khách vãng lai từng tham gia trận đấu. Số tiền đóng sẽ được trừ dần vào chi phí các trận đấu đã tham gia.</p>
       <form id="contribution-form">
         <div class="grid-2">
           <label class="field">
@@ -130,7 +130,7 @@
           </label>
           <label class="field">
             <span>Số tiền (VNĐ)</span>
-            <input type="number" id="contrib-amount" min="0" step="10000" placeholder="0" required>
+            <input type="text" id="contrib-amount" inputmode="numeric" autocomplete="off" placeholder="0" required>
           </label>
         </div>
         <div class="grid-2">
