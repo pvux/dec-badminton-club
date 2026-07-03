@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEC Badminton Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="court-lines" aria-hidden="true"></div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">SÂN &nbsp;·&nbsp; CẦU &nbsp;·&nbsp; CHIA ĐỀU</p>
+    <h1>DEC Badminton Club</h1>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="new-match">Tạo trận đấu</button>
+  <button class="tab" data-tab="history">Lịch sử trận</button>
+  <button class="tab" data-tab="summary">Tổng kết tháng</button>
+  <button class="tab" data-tab="fund">Quỹ</button>
+  <button class="tab" data-tab="members">Danh sách cố định</button>
+</nav>
+
+<main class="container">
+
+  <div id="banner" class="banner hidden"></div>
+
+  <!-- ===== TẠO TRẬN ĐẤU ===== -->
+  <section class="panel active" id="panel-new-match">
+    <div class="card">
+      <h2 class="card-title">Trận đấu mới</h2>
+      <form id="match-form">
+        <div class="grid-2">
+          <label class="field">
+            <span>Ngày đấu</span>
+            <div class="date-field">
+              <input type="text" id="match-date" class="date-text-input" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" required>
+              <svg class="date-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M3 9H21" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 3V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M16 3V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="date" id="match-date-native" class="date-native-btn" tabindex="-1" aria-hidden="true">
+            </div>
+          </label>
+          <label class="field">
+            <span>Ghi chú (tuỳ chọn)</span>
+            <input type="text" id="match-note" placeholder="VD: sân A, buổi tối...">
+          </label>
+        </div>
+        <div class="grid-2">
+          <label class="field">
+            <span>Phí sân (VNĐ)</span>
+            <input type="number" id="court-fee" min="0" step="1000" placeholder="0" required>
+          </label>
+          <label class="field">
+            <span>Phí cầu (VNĐ)</span>
+            <input type="number" id="shuttle-fee" min="0" step="1000" placeholder="0" required>
+          </label>
+        </div>
+
+        <div class="field">
+          <span>Người tham gia trận này</span>
+          <div id="participant-chips" class="chip-list"></div>
+        </div>
+
+        <div class="grid-2 add-guest-row">
+          <label class="field">
+            <span>Thêm người mới cho trận này</span>
+            <input type="text" id="guest-name" placeholder="Tên người chơi (không có trong danh sách cố định)">
+          </label>
+          <div class="field guest-btn-wrap">
+            <span>&nbsp;</span>
+            <button type="button" id="add-guest-btn" class="btn btn-secondary">+ Thêm vào trận</button>
+          </div>
+        </div>
+
+        <div class="total-preview" id="total-preview">
+          <div><span>Tổng chi phí</span><strong id="preview-total">0đ</strong></div>
+          <div><span>Số người</span><strong id="preview-count">0</strong></div>
+          <div><span>Mỗi người</span><strong id="preview-per-person">0đ</strong></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="submit-match-btn">Lưu trận đấu</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===== LỊCH SỬ ===== -->
+  <section class="panel" id="panel-history">
+    <div class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Lịch sử trận đấu</h2>
+        <select id="history-month-filter" class="select-month"></select>
+      </div>
+      <div id="history-list" class="match-list"></div>
+      <p id="history-empty" class="empty-state hidden">Chưa có trận đấu nào. Tạo trận đầu tiên ở tab "Tạo trận đấu".</p>
+    </div>
+  </section>
+
+  <!-- ===== TỔNG KẾT ===== -->
+  <section class="panel" id="panel-summary">
+    <div class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Tổng kết theo tháng</h2>
+        <select id="summary-month-filter" class="select-month"></select>
+      </div>
+      <div id="scoreboard" class="scoreboard"></div>
+      <p id="summary-empty" class="empty-state hidden">Chưa có dữ liệu cho tháng này.</p>
+    </div>
+  </section>
+
+  <!-- ===== QUỸ ===== -->
+  <section class="panel" id="panel-fund">
+    <div class="card">
+      <h2 class="card-title">Đóng quỹ</h2>
+      <p class="card-sub">Chỉ áp dụng cho người trong danh sách cố định. Số tiền đóng sẽ được trừ dần vào chi phí các trận đấu.</p>
+      <form id="contribution-form">
+        <div class="grid-2">
+          <label class="field">
+            <span>Người đóng</span>
+            <select id="contrib-name" required></select>
+          </label>
+          <label class="field">
+            <span>Số tiền (VNĐ)</span>
+            <input type="number" id="contrib-amount" min="0" step="10000" placeholder="0" required>
+          </label>
+        </div>
+        <div class="grid-2">
+          <label class="field">
+            <span>Ngày đóng</span>
+            <div class="date-field">
+              <input type="text" id="contrib-date" class="date-text-input" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" required>
+              <svg class="date-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M3 9H21" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 3V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M16 3V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="date" id="contrib-date-native" class="date-native-btn" tabindex="-1" aria-hidden="true">
+            </div>
+          </label>
+          <label class="field">
+            <span>Ghi chú (tuỳ chọn)</span>
+            <input type="text" id="contrib-note" placeholder="VD: đóng quỹ quý 3...">
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="submit-contrib-btn">Lưu khoản đóng quỹ</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2 class="card-title">Số dư quỹ hiện tại</h2>
+      <p class="card-sub">Số dư = Tổng đã đóng − Tổng chi phí các trận đã tham gia (tính từ trước tới nay).</p>
+      <div id="total-balance" class="total-balance-banner"></div>
+      <div id="balance-list" class="balance-list"></div>
+      <p id="balance-empty" class="empty-state hidden">Chưa có ai đóng quỹ.</p>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2 class="card-title">Lịch sử đóng quỹ</h2>
+      <div id="contribution-list" class="match-list"></div>
+      <p id="contribution-empty" class="empty-state hidden">Chưa có khoản đóng quỹ nào.</p>
+    </div>
+  </section>
+
+  <!-- ===== DANH SÁCH CỐ ĐỊNH ===== -->
+  <section class="panel" id="panel-members">
+    <div class="card">
+      <h2 class="card-title">Danh sách cố định</h2>
+      <p class="card-sub">Đây là những người chơi thường xuyên. Bạn có thể chọn nhanh họ khi tạo trận mới.</p>
+      <form id="member-form" class="member-form">
+        <input type="text" id="new-member-name" placeholder="Tên thành viên mới" required>
+        <button type="submit" class="btn btn-primary">+ Thêm</button>
+      </form>
+      <ul id="member-list" class="member-list"></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>Dữ liệu được lưu trên Google Sheet của bạn.</p>
+</footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
